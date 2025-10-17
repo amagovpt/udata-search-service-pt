@@ -24,10 +24,14 @@ class DatasetConsumer(Dataset):
         data["organization_name"] = organization.get('name') if organization else None
         data["organization_badges"] = organization.get('badges') if organization else None
 
-        resources = data["resources"]
+        # `resources` may be None when indexing a dataset with no resources.
+        # Treat None as an empty list to avoid TypeError when iterating.
+        resources = data.get("resources") or []
         data["resources_ids"] = [res.get("id") for res in resources]
         data["resources_titles"] = [res.get("title") for res in resources]
-        del data["resources"]
+        # remove the original key only if present
+        if "resources" in data:
+            del data["resources"]
 
         data["concat_title_org"] = get_concat_title_org(data["title"], data['acronym'], data['organization_name'])
         data["geozones"] = [zone.get("id") for zone in data.get("geozones", [])]
