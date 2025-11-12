@@ -6,8 +6,8 @@ services:
       - node.name=es01
       - cluster.name=es-docker-cluster
       - cluster.initial_master_nodes=es01
-      # try this if you run into error 137
-      # - ES_JAVA_OPTS=-Xms750m -Xmx750m
+      # Descomente isto se tiver problemas de memória (Erro 137)
+      # - "ES_JAVA_OPTS=-Xms750m -Xmx750m"
     volumes:
       - es_data_prod:/usr/share/elasticsearch/data
     expose:
@@ -17,10 +17,18 @@ services:
     command: >
       bash -c "
         if ! elasticsearch-plugin list | grep -q analysis-icu; then
-          elasticsearch-plugin install --batch analysis-icu
+          echo 'Instalando plugin analysis-icu...';
+          elasticsearch-plugin install --batch analysis-icu;
         fi &&
         /usr/local/bin/docker-entrypoint.sh eswrapper
       "
+    # Isto permite que o 'web' espere até que o Elasticsearch esteja
+    # realmente saudável, não apenas iniciado.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
 
   web:
     build:
@@ -32,6 +40,25 @@ services:
       - "5000:5000"
     environment:
       ELASTICSEARCH_URL: http://search:9200
+    depends_on:
+      # Espera que o 'search' passe no 'healthcheck' antes de iniciar
+      search:
+        condition: service_healthy
+    
+    # Substitui o ENTRYPOINT do Dockerfile para executar o init primeiro
+    entrypoint: >
+      bash -c "
+        echo 'O Elasticsearch está saudável. A executar o init-es...'
+        
+        # 1. Executa o seu comando de inicialização
+        udata-search-service init-es
+        
+        echo 'Inicialização concluída. A iniciar o serviço web...'
+        
+        # 2. Executa o comando original do Dockerfile
+        # 'exec' é importante para passar sinais (como Ctrl+C) corretamente
+        exec udata-search-service run --host=0.0.0.0
+      "
 
 volumes:
   es_data_prod:
