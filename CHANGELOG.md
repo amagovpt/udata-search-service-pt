@@ -2,6 +2,10 @@
 
 ## Current (in progress)
 
+- Nothing yet
+
+## 2.2.4 (2025-09-30)
+
 - Fix badge searches [#58](https://github.com/opendatateam/udata-search-service/pull/58)
 
 ## 2.2.3 (2025-08-28)
